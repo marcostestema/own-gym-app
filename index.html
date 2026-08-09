@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meu Treino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121316;
+    --surface:#1c1e23;
+    --surface-2:#24272d;
+    --surface-3:#2c2f36;
+    --border:#34373e;
+    --accent:#9f87f5;
+    --accent-dim:rgba(159,135,245,.16);
+    --rest:#ff8f66;
+    --rest-dim:rgba(255,143,102,.16);
+    --text:#f3f2f7;
+    --text-muted:#8d909b;
+    --danger:#ff6b6b;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    overscroll-behavior-y:none;
+  }
+  h1,h2,h3,.display,.timer-num{font-family:'Space Grotesk',system-ui,sans-serif;}
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100dvh;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+  .view{display:none; flex-direction:column; flex:1;}
+  .view.active{display:flex;}
+
+  /* ---------- LIST VIEW ---------- */
+  .hero{
+    padding:28px 20px 18px;
+  }
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin:0 0 6px;
+  }
+  .hero h1{
+    font-size:28px;
+    margin:0;
+    font-weight:700;
+    letter-spacing:-.01em;
+  }
+  .hero p{
+    margin:6px 0 0;
+    color:var(--text-muted);
+    font-size:14px;
+  }
+  .list{
+    padding:4px 16px 100px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .treino-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    cursor:pointer;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .treino-card:active{transform:scale(.98); background:var(--surface-2);}
+  .badge{
+    width:52px; height:52px;
+    border-radius:50%;
+    background:linear-gradient(155deg, var(--accent), #7a63d1);
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:700; color:#161721;
+    flex-shrink:0;
+  }
+  .treino-info{flex:1; min-width:0;}
+  .treino-info .label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-muted); font-weight:600; margin:0 0 2px;
+  }
+  .treino-info .grupo{
+    font-size:16px; font-weight:600; color:var(--text); margin:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .treino-info .count{
+    font-size:12px; color:var(--accent); margin:2px 0 0;
+  }
+  .chevron{color:var(--text-muted); font-size:20px; flex-shrink:0;}
+
+  /* ---------- TREINO VIEW ---------- */
+  .topbar{
+    display:flex; align-items:center; gap:12px;
+    padding:16px 16px 8px;
+  }
+  .back-btn{
+    width:38px; height:38px; border-radius:50%;
+    background:var(--surface); border:1px solid var(--border);
+    color:var(--text); font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0;
+  }
+  .back-btn:active{background:var(--surface-2);}
+  .topbar-title{flex:1; min-width:0;}
+  .topbar-title h2{margin:0; font-size:17px; font-weight:700;}
+  .topbar-title span{font-size:12px; color:var(--text-muted);}
+
+  .timer-zone{
+    display:flex; flex-direction:column; align-items:center;
+    padding:18px 20px 8px;
+    gap:14px;
+  }
+  .ring-wrap{position:relative; width:168px; height:168px;}
+  .ring-wrap svg{width:100%; height:100%; transform:rotate(-90deg);}
+  .ring-track{fill:none; stroke:var(--surface-3); stroke-width:6;}
+  .ring-progress{
+    fill:none; stroke:var(--accent); stroke-width:6; stroke-linecap:round;
+    stroke-dasharray:439.8; stroke-dashoffset:439.8;
+    transition:stroke .2s ease;
+  }
+  .ring-wrap.resting .ring-progress{stroke:var(--rest);}
+  .ring-wrap.spin .ring-progress-group{animation:spin 3.2s linear infinite;}
+  .ring-progress-group{transform-origin:50% 50%;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .ring-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px;
+  }
+  .timer-num{font-size:30px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums;}
+  .timer-caption{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); font-weight:600;}
+  .rest-chip{
+    display:none;
+    align-items:center; gap:8px;
+    background:var(--rest-dim); color:var(--rest);
+    border:1px solid rgba(255,143,102,.35);
+    padding:8px 14px; border-radius:999px;
+    font-size:13px; font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  .rest-chip.show{display:flex;}
+  .rest-dot{width:7px; height:7px; border-radius:50%; background:var(--rest);}
+
+  .section-title{
+    padding:6px 20px 2px; margin:0;
+    font-size:12px; text-transform:uppercase; letter-spacing:.1em;
+    color:var(--text-muted); font-weight:700;
+  }
+  .ex-list{
+    padding:8px 16px 130px;
+    display:flex; flex-direction:column; gap:10px;
+    flex:1;
+  }
+  .ex-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .ex-info{flex:1; min-width:0;}
+  .ex-info h3{margin:0 0 4px; font-size:15px; font-weight:600; color:var(--accent);}
+  .ex-info .meta{display:flex; gap:14px; font-size:13px; color:var(--text-muted);}
+  .ex-info .meta b{color:var(--text); font-weight:600;}
+  .peso-btn{
+    flex-shrink:0;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:9px 14px;
+    border-radius:10px;
+    font-size:13px; font-weight:600;
+    cursor:pointer;
+  }
+  .peso-btn:active{background:var(--surface-3);}
+
+  /* ---------- BOTTOM ACTION BAR ---------- */
+  .action-bar{
+    position:sticky; bottom:0;
+    display:flex; gap:10px;
+    padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(18,19,22,0), var(--bg) 30%);
+  }
+  .act-btn{
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:12px 8px;
+    border-radius:14px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text);
+    font-family:inherit; font-size:12.5px; font-weight:600;
+    cursor:pointer;
+  }
+  .act-btn .ic{font-size:18px;}
+  .act-btn.running{background:var(--accent-dim); border-color:var(--accent); color:var(--accent);}
+  .act-btn.resting{background:var(--rest-dim); border-color:var(--rest); color:var(--rest);}
+
+  /* ---------- MODALS / SHEETS ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(8,8,10,.6);
+    display:none; align-items:flex-end; justify-content:center;
+    z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .overlay.center{align-items:center;}
+  .sheet{
+    width:100%; max-width:480px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    animation:sheet-in .18s ease;
+  }
+  .overlay.center .sheet{
+    border-radius:18px;
+    margin:0 20px;
+    max-width:340px;
+  }
+  @keyframes sheet-in{from{transform:translateY(16px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet h3{margin:0 0 4px; font-size:17px;}
+  .sheet p{margin:0 0 16px; color:var(--text-muted); font-size:13.5px; line-height:1.5;}
+  .sheet input{
+    width:100%;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-size:16px;
+    padding:12px 14px;
+    border-radius:12px;
+    margin-bottom:16px;
+    font-family:inherit;
+  }
+  .sheet input:focus{outline:none; border-color:var(--accent);}
+  .sheet-actions{display:flex; gap:10px;}
+  .sheet-actions button{
+    flex:1;
+    padding:12px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:var(--surface-2);
+    color:var(--text);
+    font-family:inherit; font-weight:600; font-size:14px;
+    cursor:pointer;
+  }
+  .sheet-actions .primary{background:var(--accent); border-color:var(--accent); color:#161721;}
+  .sheet-actions .danger{background:var(--danger); border-color:var(--danger); color:#1a0d0d;}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ LIST VIEW ============ -->
+  <section class="view active" id="view-list">
+    <div class="hero">
+      <p class="eyebrow">Programa A–D</p>
+      <h1>Meu Treino</h1>
+      <p>Escolha o treino de hoje e acompanhe séries, peso e descanso.</p>
+    </div>
+    <div class="list" id="treino-list"></div>
+  </section>
+
+  <!-- ============ TREINO VIEW ============ -->
+  <section class="view" id="view-treino">
+    <div class="topbar">
+      <div class="back-btn" id="btn-back">←</div>
+      <div class="topbar-title">
+        <h2 id="treino-titulo">Treino</h2>
+        <span id="treino-grupo"></span>
+      </div>
+    </div>
+
+    <div class="timer-zone">
+      <div class="ring-wrap" id="ring-wrap">
+        <svg viewBox="0 0 160 160">
+          <circle class="ring-track" cx="80" cy="80" r="70"/>
+          <g class="ring-progress-group" id="ring-progress-group">
+            <circle class="ring-progress" cx="80" cy="80" r="70"/>
+          </g>
+        </svg>
+        <div class="ring-center">
+          <span class="timer-num" id="tempo-treino">00:00.00</span>
+          <span class="timer-caption">Treino</span>
+        </div>
+      </div>
+      <div class="rest-chip" id="rest-chip">
+        <span class="rest-dot"></span>
+        <span id="tempo-descanso">00:00.00</span>
+        <span style="color:var(--text-muted); font-weight:500;">descanso</span>
+      </div>
+    </div>
+
+    <p class="section-title">Exercícios</p>
+    <div class="ex-list" id="ex-list"></div>
+
+    <div class="action-bar">
+      <button class="act-btn" id="btn-toggle-treino">
+        <span class="ic">⏱</span>
+        <span id="lbl-treino">Iniciar treino</span>
+      </button>
+      <button class="act-btn" id="btn-toggle-descanso">
+        <span class="ic">⏸</span>
+        <span id="lbl-descanso">Iniciar descanso</span>
+      </button>
+    </div>
+  </section>
+
+</div>
+
+<!-- Sair do treino -->
+<div class="overlay center" id="overlay-sair">
+  <div class="sheet">
+    <h3>Sair do treino</h3>
+    <p>Deseja realmente sair? O progresso atual será perdido.</p>
+    <div class="sheet-actions">
+      <button id="sair-cancelar">Cancelar</button>
+      <button class="danger" id="sair-confirmar">Sim</button>
+    </div>
+  </div>
+</div>
+
+<!-- Alterar peso -->
+<div class="overlay" id="overlay-peso">
+  <div class="sheet">
+    <h3>Editar peso</h3>
+    <p id="peso-atual-label">Peso atual: —</p>
+    <input type="text" id="peso-input" inputmode="decimal" placeholder="ex: 30kg">
+    <div class="sheet-actions">
+      <button id="peso-cancelar">Cancelar</button>
+      <button class="primary" id="peso-salvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DADOS (equivalente ao InitialSeed.cs)
+   ============================================================ */
+let uid = 1;
+const nextId = () => uid++;
+
+const TREINOS = [
+  {
+    id: nextId(), letra: "A", grupo: "Upper 1",
+    exercicios: [
+      { nome: "Abdominal Polia", series: 2, peso: "kg" },
+      { nome: "Supino Reto com halteres", series: 2, peso: "28kg" },
+      { nome: "Fly", series: 2, peso: "85kg" },
+      { nome: "Remada baixa Maq uni", series: 2, peso: "40kg uni" },
+      { nome: "Remada curvada", series: 2, peso: "50kg" },
+      { nome: "Triceps Polia", series: 3, peso: "32kg" },
+      { nome: "Encolhimento polia", series: 2, peso: "35kg" },
+      { nome: "Elevação lateral", series: 2, peso: "12kg" },
+      { nome: "Rosca banco inclinado", series: 2, peso: "14kg" },
+      { nome: "Rosca Martelo", series: 2, peso: "16kg" },
+    ]
+  },
+  {
+    id: nextId(), letra: "B", grupo: "Lower 1",
+    exercicios: [
+      { nome: "Agachamemnto no smith", series: 2, peso: "30kg" },
+      { nome: "Extensora", series: 2, peso: "110kg" },
+      { nome: "Flexora", series: 2, peso: "100kg" },
+      { nome: "Mesa flexora uni", series: 2, peso: "20kg" },
+      { nome: "Panturrilha", series: 3, peso: "25kg" },
+      { nome: "Abdominal ?", series: 3, peso: "sla" },
+    ]
+  },
+  {
+    id: nextId(), letra: "C", grupo: "Upper 2",
+    exercicios: [
+      { nome: "Remada curvada", series: 2, peso: "50kg" },
+      { nome: "Remada baixa maq uni", series: 2, peso: "40kg" },
+      { nome: "Supino inclinado com halteres", series: 2, peso: "28kg" },
+      { nome: "Triceps Frances cross uni", series: 3, peso: "3 placa" },
+      { nome: "Desenvolvimento maquina", series: 2, peso: "85kg" },
+      { nome: "Encolhimento polia", series: 2, peso: "35kg" },
+      { nome: "Elevação lateral", series: 3, peso: "12kg" },
+      { nome: "Biceps Polia", series: 3, peso: "16kg" },
+      { nome: "Flexão de punho", series: 3, peso: "30kg" },
+    ]
+  },
+  {
+    id: nextId(), letra: "D", grupo: "Lower 2",
+    exercicios: [
+      { nome: "Leg press", series: 2, peso: "sla" },
+      { nome: "Stiff", series: 2, peso: "sla" },
+      { nome: "Mesa flexora", series: 2, peso: "sla" },
+      { nome: "Extensora", series: 2, peso: "sla" },
+      { nome: "Panturrilha", series: 3, peso: "30kg" },
+      { nome: "Abdominal", series: 3, peso: "sla" },
+    ]
+  },
+];
+// dá um id único pra cada exercício
+TREINOS.forEach(t => t.exercicios.forEach(ex => ex.id = nextId()));
+
+/* ============================================================
+   PERSISTÊNCIA (localStorage substitui o TreinoRepository/SQLite)
+   ============================================================ */
+const STORAGE_KEY = "meu-treino:pesos";
+
+function carregarPesosSalvos(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const pesos = raw ? JSON.parse(raw) : {};
+    TREINOS.forEach(t => t.exercicios.forEach(ex => {
+      if(pesos[ex.id] !== undefined) ex.peso = pesos[ex.id];
+    }));
+  }catch(e){ console.warn("Não foi possível carregar pesos salvos", e); }
+}
+
+function salvarPeso(exercicioId, novoPeso){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const pesos = raw ? JSON.parse(raw) : {};
+    pesos[exercicioId] = novoPeso;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pesos));
+  }catch(e){ console.warn("Não foi possível salvar o peso", e); }
+}
+
+carregarPesosSalvos();
+
+/* ============================================================
+   ESTADO DE NAVEGAÇÃO
+   ============================================================ */
+const viewList = document.getElementById("view-list");
+const viewTreino = document.getElementById("view-treino");
+let treinoAtual = null;
+let dentroDoTreino = false; // controla o back do navegador/mobile
+
+function abrirTreino(treinoId){
+  treinoAtual = TREINOS.find(t => t.id === treinoId);
+  if(!treinoAtual) return;
+
+  resetarTimers();
+  renderTreino();
+
+  viewList.classList.remove("active");
+  viewTreino.classList.add("active");
+
+  dentroDoTreino = true;
+  history.pushState({ treino: true }, "", "#treino-" + treinoAtual.letra);
+}
+
+function voltarParaLista(){
+  pararTimers();
+  viewTreino.classList.remove("active");
+  viewList.classList.add("active");
+  dentroDoTreino = false;
+}
+
+window.addEventListener("popstate", () => {
+  if(dentroDoTreino){
+    // usuário usou o gesto/botão de voltar do celular -> confirma antes de sair
+    history.pushState({ treino: true }, "", "#treino-" + (treinoAtual ? treinoAtual.letra : ""));
+    abrirConfirmSair();
+  }
+});
+
+/* ============================================================
+   RENDER: LISTA DE TREINOS
+   ============================================================ */
+function renderLista(){
+  const el = document.getElementById("treino-list");
+  el.innerHTML = "";
+  TREINOS.forEach(t => {
+    const card = document.createElement("div");
+    card.className = "treino-card";
+    card.innerHTML = `
+      <div class="badge">${t.letra}</div>
+      <div class="treino-info">
+        <p class="label">Grupo muscular</p>
+        <p class="grupo">${t.grupo}</p>
+        <p class="count">${t.exercicios.length} exercícios</p>
+      </div>
+      <div class="chevron">›</div>
+    `;
+    card.addEventListener("click", () => abrirTreino(t.id));
+    el.appendChild(card);
+  });
+}
+renderLista();
+
+/* ============================================================
+   RENDER: PÁGINA DE TREINO
+   ============================================================ */
+function renderTreino(){
+  document.getElementById("treino-titulo").textContent = "Treino " + treinoAtual.letra;
+  document.getElementById("treino-grupo").textContent = treinoAtual.grupo;
+
+  const el = document.getElementById("ex-list");
+  el.innerHTML = "";
+  treinoAtual.exercicios.forEach(ex => {
+    const card = document.createElement("div");
+    card.className = "ex-card";
+    card.innerHTML = `
+      <div class="ex-info">
+        <h3>${ex.nome}</h3>
+        <div class="meta">
+          <span>Séries: <b>${ex.series}</b></span>
+          <span>Peso: <b class="peso-valor">${ex.peso}</b></span>
+        </div>
+      </div>
+      <button class="peso-btn" data-id="${ex.id}">Alterar peso</button>
+    `;
+    el.appendChild(card);
+  });
+
+  document.querySelectorAll(".peso-btn").forEach(btn => {
+    btn.addEventListener("click", () => abrirEditarPeso(parseInt(btn.dataset.id, 10)));
+  });
+}
+
+/* ============================================================
+   TIMERS (equivalente ao Dispatcher.StartTimer)
+   ============================================================ */
+let rodandoTreino = false;
+let rodandoDescanso = false;
+let tempoTreinoMs = 0;
+let tempoDescansoMs = 0;
+let mostraDescanso = false;
+let intervalId = null;
+
+const ringGroup = document.getElementById("ring-progress-group");
+const ringWrap = document.getElementById("ring-wrap");
+const ringProgress = document.querySelector(".ring-progress");
+const RING_CIRC = 439.8;
+
+function formatarTempo(ms){
+  const totalCentis = Math.floor(ms / 10);
+  const centis = totalCentis % 100;
+  const totalSegundos = Math.floor(ms / 1000);
+  const segundos = totalSegundos % 60;
+  const minutos = Math.floor(totalSegundos / 60);
+  const pad = (n, l=2) => n.toString().padStart(l, "0");
+  return `${pad(minutos)}:${pad(segundos)}.${pad(centis)}`;
+}
+
+function resetarTimers(){
+  pararTimers();
+  rodandoTreino = false;
+  rodandoDescanso = false;
+  tempoTreinoMs = 0;
+  tempoDescansoMs = 0;
+  mostraDescanso = false;
+  atualizarUITimers();
+  iniciarTimers();
+}
+
+function iniciarTimers(){
+  if(intervalId) clearInterval(intervalId);
+  intervalId = setInterval(() => {
+    if(rodandoTreino) tempoTreinoMs += 100;
+    if(rodandoDescanso){
+      tempoDescansoMs += 100;
+      mostraDescanso = true;
+    }
+    atualizarUITimers();
+  }, 100);
+}
+
+function pararTimers(){
+  if(intervalId){ clearInterval(intervalId); intervalId = null; }
+}
+
+function atualizarUITimers(){
+  document.getElementById("tempo-treino").textContent = formatarTempo(tempoTreinoMs);
+  document.getElementById("tempo-descanso").textContent = formatarTempo(tempoDescansoMs);
+
+  document.getElementById("rest-chip").classList.toggle("show", mostraDescanso);
+
+  const btnTreino = document.getElementById("btn-toggle-treino");
+  const lblTreino = document.getElementById("lbl-treino");
+  btnTreino.classList.toggle("running", rodandoTreino);
+  lblTreino.textContent = rodandoTreino ? "Pausar treino" : "Iniciar treino";
+
+  const btnDescanso = document.getElementById("btn-toggle-descanso");
+  const lblDescanso = document.getElementById("lbl-descanso");
+  btnDescanso.classList.toggle("resting", rodandoDescanso);
+  lblDescanso.textContent = rodandoDescanso ? "Pausar descanso" : "Iniciar descanso";
+
+  ringWrap.classList.toggle("resting", rodandoDescanso);
+  ringWrap.classList.toggle("spin", rodandoTreino || rodandoDescanso);
+}
+
+document.getElementById("btn-toggle-treino").addEventListener("click", () => {
+  rodandoTreino = !rodandoTreino;
+  atualizarUITimers();
+});
+
+document.getElementById("btn-toggle-descanso").addEventListener("click", () => {
+  // replica o comportamento original: cada toque reinicia a contagem de descanso
+  tempoDescansoMs = 0;
+  rodandoDescanso = !rodandoDescanso;
+  if(!rodandoTreino) rodandoTreino = true;
+  atualizarUITimers();
+});
+
+/* ============================================================
+   MODAL: CONFIRMAR SAÍDA
+   ============================================================ */
+const overlaySair = document.getElementById("overlay-sair");
+
+function abrirConfirmSair(){ overlaySair.classList.add("show"); }
+function fecharConfirmSair(){ overlaySair.classList.remove("show"); }
+
+document.getElementById("btn-back").addEventListener("click", () => {
+  abrirConfirmSair();
+});
+document.getElementById("sair-cancelar").addEventListener("click", fecharConfirmSair);
+document.getElementById("sair-confirmar").addEventListener("click", () => {
+  fecharConfirmSair();
+  history.back();
+  voltarParaLista();
+});
+
+/* ============================================================
+   MODAL: ALTERAR PESO
+   ============================================================ */
+const overlayPeso = document.getElementById("overlay-peso");
+const pesoInput = document.getElementById("peso-input");
+const pesoAtualLabel = document.getElementById("peso-atual-label");
+let exercicioEditando = null;
+
+function abrirEditarPeso(exercicioId){
+  const ex = treinoAtual.exercicios.find(e => e.id === exercicioId);
+  if(!ex) return;
+  exercicioEditando = ex;
+  pesoAtualLabel.textContent = "Peso atual: " + ex.peso;
+  pesoInput.value = ex.peso;
+  overlayPeso.classList.add("show");
+  setTimeout(() => pesoInput.focus(), 50);
+}
+
+function fecharEditarPeso(){
+  overlayPeso.classList.remove("show");
+  exercicioEditando = null;
+}
+
+document.getElementById("peso-cancelar").addEventListener("click", fecharEditarPeso);
+document.getElementById("peso-salvar").addEventListener("click", () => {
+  const novoPeso = pesoInput.value.trim();
+  if(novoPeso && exercicioEditando){
+    exercicioEditando.peso = novoPeso;
+    salvarPeso(exercicioEditando.id, novoPeso);
+    renderTreino();
+  }
+  fecharEditarPeso();
+});
+pesoInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter") document.getElementById("peso-salvar").click();
+});
+</script>
+</body>
+</html>
