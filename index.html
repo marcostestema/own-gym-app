@@ -455,6 +455,7 @@ function abrirTreino(treinoId){
 
   resetarTimers();
   renderTreino();
+  pedirWakeLock();
 
   viewList.classList.remove("active");
   viewTreino.classList.add("active");
@@ -465,6 +466,7 @@ function abrirTreino(treinoId){
 
 function voltarParaLista(){
   pararTimers();
+  soltarWakeLock();
   viewTreino.classList.remove("active");
   viewList.classList.add("active");
   dentroDoTreino = false;
@@ -533,19 +535,22 @@ function renderTreino(){
 }
 
 /* ============================================================
-   TIMERS (equivalente ao Dispatcher.StartTimer)
+   TIMERS (baseados em timestamp: continuam corretos mesmo se o
+   iOS congelar o JavaScript com a tela apagada / outro app)
    ============================================================ */
 let rodandoTreino = false;
 let rodandoDescanso = false;
-let tempoTreinoMs = 0;
-let tempoDescansoMs = 0;
+let acumTreino = 0, acumDescanso = 0;       // tempo já acumulado (ms)
+let inicioTreino = 0, inicioDescanso = 0;   // timestamp do último "play"
 let mostraDescanso = false;
 let intervalId = null;
 
 const ringGroup = document.getElementById("ring-progress-group");
 const ringWrap = document.getElementById("ring-wrap");
-const ringProgress = document.querySelector(".ring-progress");
-const RING_CIRC = 439.8;
+
+const agora = () => Date.now();
+const tempoTreino = () => acumTreino + (rodandoTreino ? agora() - inicioTreino : 0);
+const tempoDescanso = () => acumDescanso + (rodandoDescanso ? agora() - inicioDescanso : 0);
 
 function formatarTempo(ms){
   const totalCentis = Math.floor(ms / 10);
@@ -557,12 +562,23 @@ function formatarTempo(ms){
   return `${pad(minutos)}:${pad(segundos)}.${pad(centis)}`;
 }
 
+function iniciarTreinoTimer(){
+  if(rodandoTreino) return;
+  inicioTreino = agora();
+  rodandoTreino = true;
+}
+function pausarTreinoTimer(){
+  if(!rodandoTreino) return;
+  acumTreino += agora() - inicioTreino;
+  rodandoTreino = false;
+}
+
 function resetarTimers(){
   pararTimers();
   rodandoTreino = false;
   rodandoDescanso = false;
-  tempoTreinoMs = 0;
-  tempoDescansoMs = 0;
+  acumTreino = 0;
+  acumDescanso = 0;
   mostraDescanso = false;
   atualizarUITimers();
   iniciarTimers();
@@ -570,14 +586,8 @@ function resetarTimers(){
 
 function iniciarTimers(){
   if(intervalId) clearInterval(intervalId);
-  intervalId = setInterval(() => {
-    if(rodandoTreino) tempoTreinoMs += 100;
-    if(rodandoDescanso){
-      tempoDescansoMs += 100;
-      mostraDescanso = true;
-    }
-    atualizarUITimers();
-  }, 100);
+  // o intervalo só redesenha a tela; o tempo vem dos timestamps
+  intervalId = setInterval(atualizarUITimers, 50);
 }
 
 function pararTimers(){
@@ -585,8 +595,8 @@ function pararTimers(){
 }
 
 function atualizarUITimers(){
-  document.getElementById("tempo-treino").textContent = formatarTempo(tempoTreinoMs);
-  document.getElementById("tempo-descanso").textContent = formatarTempo(tempoDescansoMs);
+  document.getElementById("tempo-treino").textContent = formatarTempo(tempoTreino());
+  document.getElementById("tempo-descanso").textContent = formatarTempo(tempoDescanso());
 
   document.getElementById("rest-chip").classList.toggle("show", mostraDescanso);
 
@@ -605,17 +615,49 @@ function atualizarUITimers(){
 }
 
 document.getElementById("btn-toggle-treino").addEventListener("click", () => {
-  rodandoTreino = !rodandoTreino;
+  if(rodandoTreino) pausarTreinoTimer(); else iniciarTreinoTimer();
   atualizarUITimers();
 });
 
 document.getElementById("btn-toggle-descanso").addEventListener("click", () => {
-  // replica o comportamento original: cada toque reinicia a contagem de descanso
-  tempoDescansoMs = 0;
-  rodandoDescanso = !rodandoDescanso;
-  if(!rodandoTreino) rodandoTreino = true;
+  // mantém o comportamento original: cada toque zera o descanso
+  acumDescanso = 0;
+  if(rodandoDescanso){
+    rodandoDescanso = false;
+  } else {
+    inicioDescanso = agora();
+    rodandoDescanso = true;
+    mostraDescanso = true;
+  }
+  iniciarTreinoTimer();
   atualizarUITimers();
 });
+
+/* Ao voltar pro Safari / reativar a tela, atualiza na hora */
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible"){
+    if(viewTreino.classList.contains("active")){
+      iniciarTimers();
+      atualizarUITimers();
+      pedirWakeLock();
+    }
+  }
+});
+window.addEventListener("pageshow", atualizarUITimers);
+
+/* Mantém a tela acesa durante o treino (iOS 16.4+) */
+let wakeLock = null;
+async function pedirWakeLock(){
+  try{
+    if("wakeLock" in navigator && !wakeLock){
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  }catch(e){ console.warn("Wake Lock indisponível", e); }
+}
+function soltarWakeLock(){
+  if(wakeLock){ wakeLock.release(); wakeLock = null; }
+}
 
 /* ============================================================
    MODAL: CONFIRMAR SAÍDA
