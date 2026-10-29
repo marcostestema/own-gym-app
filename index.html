@@ -52,8 +52,13 @@
   .view.active{display:flex;}
 
   /* ---------- LIST VIEW ---------- */
+  /* centraliza verticalmente o bloco (título + cards) */
+  #view-list.active{
+    justify-content:center;
+  }
   .hero{
     padding:28px 20px 18px;
+    text-align:center;
   }
   .eyebrow{
     font-size:12px;
@@ -75,7 +80,7 @@
     font-size:14px;
   }
   .list{
-    padding:4px 16px 100px;
+    padding:4px 16px calc(28px + env(safe-area-inset-bottom));
     display:flex;
     flex-direction:column;
     gap:12px;
