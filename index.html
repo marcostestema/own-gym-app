@@ -143,14 +143,35 @@
   }
   .ring-wrap{position:relative; width:168px; height:168px;}
   .ring-wrap svg{width:100%; height:100%; transform:rotate(-90deg);}
-  .ring-track{fill:none; stroke:var(--surface-3); stroke-width:6;}
+  .ring-track{
+    fill:none; stroke:var(--surface-3); stroke-width:6;
+    transition:stroke .5s ease;
+  }
+  /* arco de ~32% do círculo; só aparece quando algum timer está rodando */
   .ring-progress{
     fill:none; stroke:var(--accent); stroke-width:6; stroke-linecap:round;
-    stroke-dasharray:439.8; stroke-dashoffset:439.8;
-    transition:stroke .2s ease;
+    stroke-dasharray:439.8; stroke-dashoffset:300;
+    opacity:0;
+    transition:stroke .5s ease, opacity .4s ease, filter .5s ease;
   }
-  .ring-wrap.resting .ring-progress{stroke:var(--rest);}
+  .ring-wrap.spin .ring-progress{opacity:1;}
+
+  /* treino rodando: roxo */
+  .ring-wrap.running .ring-progress{
+    stroke:var(--accent);
+    filter:drop-shadow(0 0 6px rgba(159,135,245,.65));
+  }
+  .ring-wrap.running .ring-track{stroke:rgba(159,135,245,.18);}
+
+  /* descanso rodando: laranja */
+  .ring-wrap.resting .ring-progress{
+    stroke:var(--rest);
+    filter:drop-shadow(0 0 6px rgba(255,143,102,.65));
+  }
+  .ring-wrap.resting .ring-track{stroke:rgba(255,143,102,.18);}
+
   .ring-wrap.spin .ring-progress-group{animation:spin 3.2s linear infinite;}
+  .ring-wrap.resting.spin .ring-progress-group{animation-duration:2s;}
   .ring-progress-group{transform-origin:50% 50%;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .ring-center{
@@ -205,6 +226,49 @@
   }
   .peso-btn:active{background:var(--surface-3);}
 
+  /* ---------- EFEITO DE SCROLL NOS EXERCÍCIOS ---------- */
+  /* 1) entrada: cada item surge com fade + blur + subida suave */
+  .ex-item{
+    opacity:0;
+    translate:0 28px;
+    filter:blur(8px);
+    transition:
+      opacity .7s cubic-bezier(.22,.8,.24,1) var(--d,0ms),
+      translate .7s cubic-bezier(.22,.8,.24,1) var(--d,0ms),
+      filter .7s cubic-bezier(.22,.8,.24,1) var(--d,0ms);
+  }
+  .ex-item.in{opacity:1; translate:0 0; filter:blur(0);}
+
+  /* 2) foco: quanto mais longe do centro da tela, menor e mais apagado */
+  .ex-card{
+    position:relative;
+    overflow:hidden;
+    transform-origin:center;
+    scale:calc(.92 + .08 * var(--p,1));
+    opacity:calc(.35 + .65 * var(--p,1));
+    will-change:scale, opacity;
+    transition:border-color .35s ease, box-shadow .35s ease, background .35s ease;
+  }
+  .ex-card::before{
+    content:"";
+    position:absolute; left:0; top:14px; bottom:14px;
+    width:3px; border-radius:0 3px 3px 0;
+    background:var(--accent);
+    transform:scaleY(0); opacity:0;
+    transition:transform .4s cubic-bezier(.22,.8,.24,1), opacity .3s ease;
+  }
+  .ex-card.focus{
+    border-color:rgba(159,135,245,.55);
+    background:linear-gradient(135deg, rgba(159,135,245,.10), var(--surface) 55%);
+    box-shadow:0 10px 30px -12px rgba(159,135,245,.5);
+  }
+  .ex-card.focus::before{transform:scaleY(1); opacity:1;}
+
+  @media (prefers-reduced-motion: reduce){
+    .ex-item{opacity:1; translate:none; filter:none; transition:none;}
+    .ex-card{scale:1; opacity:1;}
+  }
+
   /* ---------- BOTTOM ACTION BAR ---------- */
   .action-bar{
     position:sticky; bottom:0;
@@ -222,7 +286,14 @@
     color:var(--text);
     font-family:inherit; font-size:12.5px; font-weight:600;
     cursor:pointer;
+    -webkit-appearance:none; appearance:none;
+    touch-action:manipulation;
+    -webkit-user-select:none; user-select:none;
+    min-height:64px;
+    justify-content:center;
   }
+  /* o toque sempre cai no botão, nunca nos spans internos */
+  .act-btn > *{pointer-events:none;}
   .act-btn .ic{font-size:18px;}
   .act-btn.running{background:var(--accent-dim); border-color:var(--accent); color:var(--accent);}
   .act-btn.resting{background:var(--rest-dim); border-color:var(--rest); color:var(--rest);}
@@ -375,13 +446,12 @@ const TREINOS = [
   {
     id: nextId(), letra: "A", grupo: "Upper 1",
     exercicios: [
-      { nome: "Supino Reto com halteres", series: 2, peso: "30kg" },
-      { nome: "Fly", series: 2, peso: "85kg" },
       { nome: "Abdominal Polia", series: 2, peso: "kg" },
-      { nome: "Puxada alta", series: 2, peso: "70kg" },
-      { nome: "Remada baixa Maq uni", series: 2, peso: "45kg uni" },
+      { nome: "Supino Reto com halteres", series: 2, peso: "28kg" },
+      { nome: "Fly", series: 2, peso: "85kg" },
+      { nome: "Remada baixa Maq uni", series: 2, peso: "40kg uni" },
+      { nome: "Remada curvada", series: 2, peso: "50kg" },
       { nome: "Triceps Polia", series: 3, peso: "32kg" },
-      { nome: "Abdução horizontal", series: 2, peso: "5kg" },
       { nome: "Encolhimento polia", series: 2, peso: "35kg" },
       { nome: "Elevação lateral", series: 2, peso: "12kg" },
       { nome: "Rosca banco inclinado", series: 2, peso: "14kg" },
@@ -391,7 +461,7 @@ const TREINOS = [
   {
     id: nextId(), letra: "B", grupo: "Lower 1",
     exercicios: [
-      { nome: "Agachamento no smith", series: 2, peso: "30kg" },
+      { nome: "Agachamemnto no smith", series: 2, peso: "30kg" },
       { nome: "Extensora", series: 2, peso: "110kg" },
       { nome: "Flexora", series: 2, peso: "100kg" },
       { nome: "Mesa flexora uni", series: 2, peso: "20kg" },
@@ -402,9 +472,9 @@ const TREINOS = [
   {
     id: nextId(), letra: "C", grupo: "Upper 2",
     exercicios: [
-      { nome: "Supino inclinado com halteres", series: 2, peso: "28kg" },
       { nome: "Remada curvada", series: 2, peso: "50kg" },
       { nome: "Remada baixa maq uni", series: 2, peso: "40kg" },
+      { nome: "Supino inclinado com halteres", series: 2, peso: "28kg" },
       { nome: "Triceps Frances cross uni", series: 3, peso: "3 placa" },
       { nome: "Desenvolvimento maquina", series: 2, peso: "85kg" },
       { nome: "Encolhimento polia", series: 2, peso: "35kg" },
@@ -467,11 +537,13 @@ function abrirTreino(treinoId){
   if(!treinoAtual) return;
 
   resetarTimers();
-  renderTreino();
+  renderTreino(true);
   pedirWakeLock();
 
   viewList.classList.remove("active");
   viewTreino.classList.add("active");
+  window.scrollTo(0, 0);
+  agendarEfeito();
 
   dentroDoTreino = true;
   history.pushState({ treino: true }, "", "#treino-" + treinoAtual.letra);
@@ -482,6 +554,7 @@ function voltarParaLista(){
   soltarWakeLock();
   viewTreino.classList.remove("active");
   viewList.classList.add("active");
+  window.scrollTo(0, 0);
   dentroDoTreino = false;
 }
 
@@ -520,7 +593,7 @@ renderLista();
 /* ============================================================
    RENDER: PÁGINA DE TREINO
    ============================================================ */
-function renderTreino(){
+function renderTreino(animar = false){
   document.getElementById("treino-titulo").textContent = "Treino " + treinoAtual.letra;
   document.getElementById("treino-grupo").textContent = treinoAtual.grupo;
 
@@ -539,8 +612,14 @@ function renderTreino(){
       </div>
       <button class="peso-btn" data-id="${ex.id}">Alterar peso</button>
     `;
-    el.appendChild(card);
+    const item = document.createElement("div");
+    item.className = "ex-item";
+    item.appendChild(card);
+    el.appendChild(item);
   });
+
+  configurarReveal(el, animar);
+  agendarEfeito();
 
   document.querySelectorAll(".peso-btn").forEach(btn => {
     btn.addEventListener("click", () => abrirEditarPeso(parseInt(btn.dataset.id, 10)));
@@ -607,22 +686,29 @@ function pararTimers(){
   if(intervalId){ clearInterval(intervalId); intervalId = null; }
 }
 
+// só mexe no DOM se o texto realmente mudou (evita recriar o nó de texto
+// do botão a cada 50ms, o que fazia o toque se perder no iOS)
+function setTexto(el, texto){
+  if(el.textContent !== texto) el.textContent = texto;
+}
+
 function atualizarUITimers(){
-  document.getElementById("tempo-treino").textContent = formatarTempo(tempoTreino());
-  document.getElementById("tempo-descanso").textContent = formatarTempo(tempoDescanso());
+  setTexto(document.getElementById("tempo-treino"), formatarTempo(tempoTreino()));
+  setTexto(document.getElementById("tempo-descanso"), formatarTempo(tempoDescanso()));
 
   document.getElementById("rest-chip").classList.toggle("show", mostraDescanso);
 
   const btnTreino = document.getElementById("btn-toggle-treino");
   const lblTreino = document.getElementById("lbl-treino");
   btnTreino.classList.toggle("running", rodandoTreino);
-  lblTreino.textContent = rodandoTreino ? "Pausar treino" : "Iniciar treino";
+  setTexto(lblTreino, rodandoTreino ? "Pausar treino" : "Iniciar treino");
 
   const btnDescanso = document.getElementById("btn-toggle-descanso");
   const lblDescanso = document.getElementById("lbl-descanso");
   btnDescanso.classList.toggle("resting", rodandoDescanso);
-  lblDescanso.textContent = rodandoDescanso ? "Pausar descanso" : "Iniciar descanso";
+  setTexto(lblDescanso, rodandoDescanso ? "Pausar descanso" : "Iniciar descanso");
 
+  ringWrap.classList.toggle("running", rodandoTreino && !rodandoDescanso);
   ringWrap.classList.toggle("resting", rodandoDescanso);
   ringWrap.classList.toggle("spin", rodandoTreino || rodandoDescanso);
 }
@@ -658,15 +744,90 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pageshow", atualizarUITimers);
 
+/* ============================================================
+   EFEITO DE SCROLL NOS EXERCÍCIOS
+   ============================================================ */
+const reduzMovimento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let observerReveal = null;
+let efeitoAgendado = false;
+
+// 1) entrada: cada item aparece (uma vez) quando entra na tela, em cascata
+function configurarReveal(container, animar){
+  if(observerReveal){ observerReveal.disconnect(); observerReveal = null; }
+  const itens = [...container.querySelectorAll(".ex-item")];
+
+  if(!animar || reduzMovimento || !("IntersectionObserver" in window)){
+    itens.forEach(i => i.classList.add("in"));
+    return;
+  }
+
+  observerReveal = new IntersectionObserver((entries, obs) => {
+    const visiveis = entries
+      .filter(e => e.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    visiveis.forEach((e, i) => {
+      e.target.style.setProperty("--d", Math.min(i * 70, 420) + "ms");
+      e.target.classList.add("in");
+      obs.unobserve(e.target);
+    });
+  }, { threshold: 0.1, rootMargin: "0px 0px -6% 0px" });
+
+  itens.forEach(i => observerReveal.observe(i));
+}
+
+// 2) foco: quanto mais perto do centro da tela, maior e mais nítido o card
+function atualizarEfeito(){
+  efeitoAgendado = false;
+  if(reduzMovimento) return;
+  if(!viewTreino.classList.contains("active")) return;
+
+  const cards = document.querySelectorAll("#ex-list .ex-card");
+  if(!cards.length) return;
+
+  const centro = window.innerHeight * 0.5;
+  const valores = [];
+  let melhor = -1, menorDist = Infinity;
+
+  // leitura em lote primeiro, escrita depois (evita layout thrashing)
+  cards.forEach((card, i) => {
+    const r = card.getBoundingClientRect();
+    const dist = Math.abs((r.top + r.height / 2) - centro) / centro;
+    const t = Math.min(1, Math.max(0, (dist - 0.6) / 0.4));
+    valores.push(1 - t * t * (3 - 2 * t)); // smoothstep invertido
+    if(dist < menorDist){ menorDist = dist; melhor = i; }
+  });
+
+  cards.forEach((card, i) => {
+    card.style.setProperty("--p", valores[i].toFixed(3));
+    card.classList.toggle("focus", i === melhor && menorDist < 0.75);
+  });
+}
+
+function agendarEfeito(){
+  if(efeitoAgendado) return;
+  efeitoAgendado = true;
+  requestAnimationFrame(atualizarEfeito);
+}
+window.addEventListener("scroll", agendarEfeito, { passive: true });
+window.addEventListener("resize", agendarEfeito);
+
 /* Mantém a tela acesa durante o treino (iOS 16.4+) */
 let wakeLock = null;
+let wakeLockPendente = false; // evita pedidos simultâneos (race condition)
 async function pedirWakeLock(){
+  if(wakeLock || wakeLockPendente || !("wakeLock" in navigator)) return;
+  wakeLockPendente = true;
   try{
-    if("wakeLock" in navigator && !wakeLock){
-      wakeLock = await navigator.wakeLock.request("screen");
-      wakeLock.addEventListener("release", () => { wakeLock = null; });
-    }
-  }catch(e){ console.warn("Wake Lock indisponível", e); }
+    const lock = await navigator.wakeLock.request("screen");
+    // se o usuário já saiu do treino enquanto o pedido estava pendente, solta na hora
+    if(!dentroDoTreino){ lock.release(); return; }
+    wakeLock = lock;
+    lock.addEventListener("release", () => { if(wakeLock === lock) wakeLock = null; });
+  }catch(e){
+    console.warn("Wake Lock indisponível", e);
+  }finally{
+    wakeLockPendente = false;
+  }
 }
 function soltarWakeLock(){
   if(wakeLock){ wakeLock.release(); wakeLock = null; }
